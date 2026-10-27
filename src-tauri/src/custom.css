@@ -66,10 +66,13 @@ nav[data-testid="pv-navigation-bar"] [data-testid="pv-nav-branding"] {
     -webkit-app-region: no-drag !important;
 }
 
-.pvt-in-player .pvt-player-topbar {
+.pvt-in-player .pvt-player-topbar,
+.pvt-in-player .atvwebplayersdk-top-left-regulatory-overlay {
     transform: translateY(60px) !important;
 }
-:fullscreen .pvt-player-topbar {
+.pvt-player-topbar .atvwebplayersdk-top-left-regulatory-overlay,
+:fullscreen .pvt-player-topbar,
+:fullscreen .atvwebplayersdk-top-left-regulatory-overlay {
     transform: none !important;
 }
 .atvwebplayersdk-title-text,

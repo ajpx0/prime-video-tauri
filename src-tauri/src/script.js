@@ -106,7 +106,7 @@ Object.defineProperty(window, 'chrome', {
 
   const findPlayerTopbar = (player) => {
     if (!player) return null;
-    const title = player.querySelector('.atvwebplayersdk-title-text') || player.querySelector('.atvwebplayersdk-episode-info');
+    const title = player.querySelector('.atvwebplayersdk-title-text') || player.querySelector('.atvwebplayersdk-episode-info') || player.querySelector('#atvwebplayersdk-close-player-button');
     const settings = player.querySelector('#atvwebplayersdk-settings-button');
     if (!title || !settings) return null;
     let node = title.parentElement;
