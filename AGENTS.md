@@ -22,11 +22,11 @@ Amazon Prime Video（`https://www.amazon.co.jp/gp/video/storefront`）を **Taur
 | --- | --- |
 | `src-tauri/src/lib.rs` | `WebviewWindow` 構築。**`#[cfg(target_os = "windows")]` 限定で `initialization_script` 注入**。`--load-extension={adg}` で広告ブロック読込。Discord Rich Presence。debug 時 `--remote-debugging-port=9222`（CDP）。 |
 | `src-tauri/build.rs` | ビルド時に `src/script.js` + `src/custom.css` を結合し、`script.js` 内のプレースホルダ **`__PVT_CSS__`** を `serde_json::to_string(custom.css)` で置換 → `OUT_DIR/inject.js` を生成。`cargo:rerun-if-changed=src/script.js` / `src/custom.css` を出力（**この 2 行は必須**：tauri_build が自前の rerun-if を出すため、消すと変更時に再生成されない）。 |
-| `src-tauri/src/script.js` | 注入される JS（Windows のみ）。先頭に **`__PVT_CSS__` を使う CSS 注入 IIFE**（`documentElement` 出現を待って `<style id="pvt-ext-css">` 追加）。ウィンドウ操作ボタン / 戻る / タイトルバー背景 / 再生中ドラッグバー（`#pvt-player-dragbar`）の生成。`pvt-has-nav`（ナビ有無）・`pvt-in-player`（`.atvwebplayersdk-player-container` 有無）のトグル。`const ICONS` はボタンのグリフ文字（JS データ）。 |
+| `src-tauri/src/script.js` | 注入される JS（Windows のみ）。先頭に **`__PVT_CSS__` を使う CSS 注入 IIFE**（`documentElement` 出現を待って `<style id="pvt-ext-css">` 追加）。ウィンドウ操作ボタン / 戻る / タイトルバー背景 / 再生中ドラッグバー（`#pvt-player-dragbar`）の生成。`pvt-has-nav`（ナビ有無）・`pvt-in-player`（サイズ > 0 の `.atvwebplayersdk-player-container` 有無。0×0 のコンテナも DOM に残るため可視判定が必須）のトグル。再生中はタイトル〜設定ボタンを含む祖先に `.pvt-player-topbar` を付け、CSS で 60px 下げる。`const ICONS` はボタンのグリフ文字（JS データ）。 |
 | `src-tauri/src/custom.css` | **注入される見た目の唯一の定義元**（build.rs が script.js に埋め込む）。スクロールバー非表示 / フォント / ネイティブ navbar・footer 非表示 / ドラッグ領域 / ウィンドウ操作ボタンのスタイル / プレイヤー関連の調整。 |
-| `src-tauri/tauri.conf.json` | `productName` / `version`（リポジトリでは **常に `0.0.0`**、CI が実バージョンを差し込む）/ `identifier` / `resources: ["adg"]` / `decorations` など。 |
-| `src-tauri/adg/` | WebView2 に読み込む広告ブロック拡張のディレクトリ。 |
-| `.github/workflows/` | `build.yml`（main 以外への push でビルド検証）/ `release.yml`（main への push でリリース）。 |
+| `src-tauri/tauri.conf.json` | `productName`（表示名 `Prime Video Tauri`）/ `mainBinaryName`（exe 名 `prime-video-tauri`。productName にスペースがあるため必須）/ `version`（リポジトリでは **常に `0.0.0`**、CI が実バージョンを差し込む）/ `identifier` / `resources: ["adg"]` など。ウィンドウタイトルは `lib.rs` の `.title()`。 |
+| `src-tauri/adg/` | 同梱の **AdGuard Browser Extension（GPL-3.0）**。GitHub Releases の `edge-mv3.zip` を展開したもの + 同タグの `LICENSE`。更新時は `gh release download -R AdguardTeam/AdguardBrowserExtension -p edge-mv3.zip` → 中身を差し替え、LICENSE を残す。 |
+| `.github/workflows/` | `build.yml`（main 以外への push でビルド検証）/ `release.yml`（main への push でリリース）/ `create_release_commit.yml`（手動実行でリリース用マージコミット作成）。 |
 
 ## 開発・ビルドコマンド
 
@@ -59,13 +59,18 @@ cargo check --manifest-path src-tauri/Cargo.toml
 ## デバッグ（CDP）
 
 - debug ビルドは `http://localhost:9222` に CDP を公開。`/json` で page ターゲット、WebSocket で `Runtime.evaluate`。
-- プレイヤーに入る: ストアフロントで `[data-testid="play"]` を click → 十数秒待つ（要ログイン・DRM 再生可）。コントロールは mousemove で表示。
+- chrome-devtools MCP は自前の Chrome を起動するため WebView2 に繋がらない。Node の `WebSocket` で `webSocketDebuggerUrl` に直接接続する。
+- プレイヤーに入る: ストアフロントで `[data-testid="play"]` を click → 十数秒待つ（要ログイン・DRM 再生可）。
+- コントロールは JS の合成 `mousemove` では出ない。CDP の `Input.dispatchMouseEvent`（`mouseMoved`）で実マウス移動させる。非表示時は上部コントロールの DOM ごと消え、表示時に再生成される。
+- アプリを強制終了すると再生セッションが残り「最大ストリーミング再生数」で弾かれることがある（最大 10 分ほどで解除）。
 - **OS ウィンドウドラッグの実挙動は CDP で検証不可**（`-webkit-app-region` の指定値は `getComputedStyle` で読めるが、実ドラッグは人間の実機確認が必要）。
 
 ## CI / リリース
 
-- **`release.yml`（`main` への push で起動）**: **マージコミット（push されたコミット）のタイトルがそのままバージョン**になる（`git log -1 --format=%s`）。`set_version` → ドラフトリリース作成 → `publish`（`sed` で `package.json` / `tauri.conf.json` / `Cargo.toml` の version を差し替え、`tauri-action` で Windows ビルド & アップロード）→ リリース確定。
-  - したがって **main へのマージコミットのタイトルは `0.0.4` のようなバージョン番号にする**（PR の auto-merge では「マージコミットタイトル」をバージョンに設定する運用）。
+- **`release.yml`（`main` への push で起動）**: **push されたコミットのタイトルがそのままバージョン**になる（`git log -1 --format=%s`）。`set_version` → ドラフトリリース作成 → `publish`（`sed` で `package.json` / `tauri.conf.json` / `Cargo.toml` の version を差し替え、`tauri-action@v1` で Windows ビルド & アップロード）→ リリース確定。
+  - したがって **main へのコミットのタイトルは `0.0.7` のようなバージョン番号にする**。プレリリース（`0.0.6-1` 等）は MSI の制約で数字のみ・65535 以下。SemVer 上 `0.0.6-1 < 0.0.6` になる点に注意。
+  - アセット名は `releaseAssetNamePattern: '[mainBinaryName]_[arch][setup][ext]'`（バージョンを含まない）。v0 では入力名が `assetNamePattern` で `[mainBinaryName]` も無かった。
+- **`create_release_commit.yml`（`workflow_dispatch`）**: 入力 `source_branch`（既定 `develop`）と `version`（`x.y.z`）で、GitHub App トークン（`secrets.APP_PRIVATE_KEY`）を使い `source_branch → main` をマージコミット（タイトル = version）として作成 → `release.yml` が起動する。`GITHUB_TOKEN` での push はワークフローを起動しないため App トークンが必須。
 - **`build.yml`（main 以外への push）**: `pnpm build` でビルド検証のみ。
 - pnpm のバージョンはワークフローで明示指定せず、`package.json` の `packageManager` を単一ソースにする（`pnpm/action-setup` の `version` 指定は併用すると競合エラーになるため付けない）。
 
@@ -74,9 +79,11 @@ cargo check --manifest-path src-tauri/Cargo.toml
 - 回答は**日本語**。
 - コミット: **Conventional Commits**・**英語**・**1 行**（本文/footer なし）・**GPG 署名必須**（`--no-verify` / `--no-gpg-sign` 禁止）。**依頼があるまで commit / push しない**。
 - ローカル `git push` はオーナー（AariyJP）として行う（develop ルールセットの bypass あり。`Changes must be made through a pull request` 警告は出るが成功する）。
-- **GitHub への書き込み（PR 作成・概要更新・コメント等）は GitHub App `aariyjp[bot]` 経由**: `~/ghs_token.ps1` でトークンを取得し `GH_TOKEN` をその場限りで使用（永続化しない）。
-- リリースは `develop → main` の PR を auto-merge（マージコミットタイトル = バージョン、本文空、Assignee/Reviewer = AariyJP）で行う。
+- **GitHub への書き込み（PR 作成・概要更新・コメント等）は GitHub App `aariyjp[bot]` 経由**: `~/ghs_token.ps1` でトークンを取得し `GH_TOKEN` をその場限りで使用（永続化しない）。bot として main に直接コミットする場合は GraphQL `createCommitOnBranch`（署名付き）を使う。
+- リリースは Actions の **Create Release Commit** をバージョン指定で実行する。
 
 ## 既知の残課題
 
-- **再生中のタイトルバー領域ドラッグ**（`#pvt-player-dragbar` を `z-index:-1` 全幅 + プレイヤー内ボタンを `no-drag`）は、要素配置・`app-region` 指定までは確認済みだが **OS ドラッグの実挙動が未検証**。動かない場合はドラッグ要素を**プレイヤーオーバーレイの内側に prepend**（同一スタッキングコンテキスト）する方式に切り替える。
+- **再生中のタイトルバー領域ドラッグ**（`#pvt-player-dragbar` を上端 60px・`z-index: 2147483646` で固定 + プレイヤー内ボタンを `no-drag`）の OS ドラッグ実挙動は人間の実機確認が必要。
+- **再生中上部コントロールの一瞬のズレ**: コントロール再生成直後は `.pvt-player-topbar` 付与（MutationObserver → rAF）が間に合わず元位置に一瞬出る可能性がある。対策する場合も、動画はウィンドウ全面（ウィンドウ操作ボタンの背面）に表示したまま UI だけを下げること（`#dv-web-player` ごと下げる方式は不可）。
+- **再生開始時のレーティング表示**（`.atvwebplayersdk-top-left-regulatory-overlay`）がタイトルバー領域に重なる場合がある。
