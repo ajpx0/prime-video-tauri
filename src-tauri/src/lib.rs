@@ -65,7 +65,7 @@ pub fn run() {
                 "main",
                 tauri::WebviewUrl::App("https://www.amazon.co.jp/gp/video/storefront".into()),
             )
-            .title("Prime Video")
+            .title("Prime Video Tauri")
             .inner_size(1280.0, 800.0)
             .min_inner_size(990.0, 600.0)
             .background_color(tauri::utils::config::Color(45, 45, 45, 255))
