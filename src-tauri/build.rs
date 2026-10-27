@@ -11,5 +11,9 @@ fn main() {
     let out = Path::new(&out_dir).join("inject.js");
     std::fs::write(out, script.replace("__PVT_CSS__", &json)).expect("failed to write inject.js");
 
-    tauri_build::build();
+    tauri_build::try_build(
+        tauri_build::Attributes::new()
+            .app_manifest(tauri_build::AppManifest::new().commands(&["update_activity"])),
+    )
+    .expect("failed to run tauri-build");
 }

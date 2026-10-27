@@ -254,8 +254,43 @@ Object.defineProperty(window, 'chrome', {
     list.prepend(newItem);
   };
 
+  const isRichPresenceOn = () => {
+    try { return localStorage.getItem('pvt-rich-presence') !== 'off'; } catch (_) { return true; }
+  };
+
+  const ensureRichPresenceItem = (container) => {
+    if (!container || container.querySelector('[data-pvt-rich-presence]')) return;
+    const list = container.querySelector('ul');
+    if (!list) return;
+    const sample = list.querySelector('li');
+    if (!sample) return;
+    const newItem = sample.cloneNode(true);
+    const link = newItem.querySelector('a');
+    if (!link) return;
+    link.setAttribute('data-pvt-rich-presence', 'true');
+    link.setAttribute('role', 'checkbox');
+    link.setAttribute('aria-label', 'Rich Presence');
+    link.setAttribute('aria-checked', String(isRichPresenceOn()));
+    link.removeAttribute('href');
+    link.removeAttribute('data-testid');
+    link.removeAttribute('data-pvt-login');
+    const labelSpan = link.querySelector('span');
+    if (labelSpan) labelSpan.textContent = 'Rich Presence';
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      try { localStorage.setItem('pvt-rich-presence', isRichPresenceOn() ? 'off' : 'on'); } catch (_) {}
+      document.querySelectorAll('[data-pvt-rich-presence]').forEach((node) => node.setAttribute('aria-checked', String(isRichPresenceOn())));
+      window.dispatchEvent(new Event('pvt-rich-presence'));
+    });
+    list.appendChild(newItem);
+  };
+
   const scanAccountDropdowns = () => {
-    document.querySelectorAll('[data-testid="pv-nav-account-and-profiles-dropdown-section-container"]').forEach(ensureLoginItem);
+    document.querySelectorAll('[data-testid="pv-nav-account-and-profiles-dropdown-section-container"]').forEach((container) => {
+      ensureLoginItem(container);
+      ensureRichPresenceItem(container);
+    });
   };
 
   const startDropdownObserver = () => {
@@ -285,5 +320,67 @@ Object.defineProperty(window, 'chrome', {
     startDropdownObserver();
   } else {
     document.addEventListener('DOMContentLoaded', startDropdownObserver, { once: true });
+  }
+})();
+
+(() => {
+  let meta = null;
+  let last = null;
+
+  const findVideo = () => [...document.querySelectorAll('#dv-web-player video')].find((v) => (v.currentSrc || '').startsWith('blob:') && v.getBoundingClientRect().width > 0);
+
+  const report = () => {
+    const core = window.__TAURI__ && window.__TAURI__.core;
+    if (!core) return;
+    const root = document.documentElement;
+    const video = findVideo();
+    const args = {};
+    let enabled = true;
+    try { enabled = localStorage.getItem('pvt-rich-presence') !== 'off'; } catch (_) {}
+    if (enabled && root && root.classList.contains('pvt-in-player') && meta && video) {
+      const c = meta.catalog;
+      const isEpisode = !!c.seriesTitle;
+      args.details = isEpisode ? c.seriesTitle : c.title;
+      args.status = isEpisode ? c.title : null;
+      args.image = (meta.images && (meta.images.boxartImage || meta.images.coverImage)) || null;
+      if (!video.paused && isFinite(video.duration)) {
+        const now = Date.now() / 1000;
+        args.start = Math.round(now - video.currentTime);
+        args.end = Math.round(now + video.duration - video.currentTime);
+      }
+    }
+    const key = JSON.stringify(args);
+    if (key === last) return;
+    last = key;
+    core.invoke('update_activity', args).catch(() => {});
+  };
+
+  const originalFetch = window.fetch;
+  window.fetch = function (...args) {
+    const promise = originalFetch.apply(this, args);
+    const url = String((args[0] && args[0].url) || args[0] || '');
+    if (url.includes('playerChromeResources')) {
+      promise.then((res) => res.clone().json()).then((json) => {
+        const m = json && json.resources && json.resources.catalogMetadataV2;
+        if (m && m.catalog) {
+          meta = m;
+          report();
+        }
+      }).catch(() => {});
+    }
+    return promise;
+  };
+
+  ['play', 'pause', 'seeked', 'ended', 'durationchange'].forEach((type) => document.addEventListener(type, report, true));
+  window.addEventListener('pvt-rich-presence', report);
+
+  const watchRoot = () => {
+    new MutationObserver(report).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    report();
+  };
+  if (document.documentElement) {
+    watchRoot();
+  } else {
+    document.addEventListener('DOMContentLoaded', watchRoot, { once: true });
   }
 })();

@@ -1,5 +1,5 @@
 use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Manager;
 
@@ -8,10 +8,13 @@ struct DiscordState {
 }
 
 fn make_activity() -> activity::Activity<'static> {
-    let start_time = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
+    static START_TIME: OnceLock<u64> = OnceLock::new();
+    let start_time = *START_TIME.get_or_init(|| {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+    });
 
     activity::Activity::new()
         .activity_type(activity::ActivityType::Watching)
@@ -23,6 +26,42 @@ fn make_activity() -> activity::Activity<'static> {
         //         .large_text("Prime Video"),
         // )
         .timestamps(activity::Timestamps::new().start(start_time as i64))
+}
+
+#[tauri::command]
+fn update_activity(
+    discord: tauri::State<DiscordState>,
+    details: Option<String>,
+    status: Option<String>,
+    image: Option<String>,
+    start: Option<i64>,
+    end: Option<i64>,
+) {
+    let mut client_lock = discord.client.lock().unwrap();
+    let Some(client) = client_lock.as_mut() else {
+        return;
+    };
+    let Some(details) = details.as_deref() else {
+        if client.set_activity(make_activity()).is_ok() {
+            let _ = client.recv();
+        }
+        return;
+    };
+    let mut act: activity::Activity = make_activity().details(details);
+    if let Some(status) = status.as_deref() {
+        act = act.state(status);
+    }
+    if let Some(image) = image.as_deref() {
+        act = act.assets(activity::Assets::new().large_image(image).large_text(details));
+    }
+    if let (Some(start), Some(end)) = (start, end) {
+        act = act.timestamps(activity::Timestamps::new().start(start).end(end));
+    }
+    if client.set_activity(act).is_err() {
+        println!("Failed to set Discord activity.");
+    } else {
+        let _ = client.recv();
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -91,6 +130,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![update_activity])
         .run(tauri::generate_context!())
         .expect("アプリケーションの起動中にエラーが発生しました。");
 }
