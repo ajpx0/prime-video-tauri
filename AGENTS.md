@@ -22,7 +22,7 @@ Amazon Prime Video（`https://www.amazon.co.jp/gp/video/storefront`）を **Taur
 | --- | --- |
 | `src-tauri/src/lib.rs` | `WebviewWindow` 構築。**`#[cfg(target_os = "windows")]` 限定で `initialization_script` 注入**。`--load-extension={adg}` で広告ブロック読込。Discord Rich Presence。debug 時 `--remote-debugging-port=9222`（CDP）。 |
 | `src-tauri/build.rs` | ビルド時に `src/script.js` + `src/custom.css` を結合し、`script.js` 内のプレースホルダ **`__PVT_CSS__`** を `serde_json::to_string(custom.css)` で置換 → `OUT_DIR/inject.js` を生成。`cargo:rerun-if-changed=src/script.js` / `src/custom.css` を出力（**この 2 行は必須**：tauri_build が自前の rerun-if を出すため、消すと変更時に再生成されない）。 |
-| `src-tauri/src/script.js` | 注入される JS（Windows のみ）。先頭に **`__PVT_CSS__` を使う CSS 注入 IIFE**（`documentElement` 出現を待って `<style id="pvt-ext-css">` 追加）。ウィンドウ操作ボタン / 戻る / タイトルバー背景 / 再生中ドラッグバー（`#pvt-player-dragbar`）の生成。`pvt-has-nav`（ナビ有無）・`pvt-in-player`（サイズ > 0 の `.atvwebplayersdk-player-container` 有無。0×0 のコンテナも DOM に残るため可視判定が必須）のトグル。再生中はタイトル〜設定ボタンを含む祖先に `.pvt-player-topbar` を付け、CSS で 60px 下げる。`const ICONS` はボタンのグリフ文字（JS データ）。 |
+| `src-tauri/src/script.js` | 注入される JS（Windows のみ）。先頭に **`__PVT_CSS__` を使う CSS 注入 IIFE**（`documentElement` 出現を待って `<style id="pvt-ext-css">` 追加）。ウィンドウ操作ボタン / 戻る / タイトルバー背景 / 再生中ドラッグバー（`#pvt-player-dragbar`）の生成。`pvt-has-nav`（ナビ有無）・`pvt-in-player`（サイズ > 0 の `.atvwebplayersdk-player-container` 有無。0×0 のコンテナも DOM に残るため可視判定が必須）のトグル。再生中はタイトル（無ければ閉じるボタン。再生開始直後のレーティング表示中はタイトルが DOM に無い）〜設定ボタンを含む祖先に `.pvt-player-topbar` を付け、CSS で 60px 下げる。レーティング表示（`.atvwebplayersdk-top-left-regulatory-overlay`）は `.pvt-player-topbar` の外にある場合だけ CSS で単独に 60px 下げる（中にある場合は二重にならないよう打ち消す）。`const ICONS` はボタンのグリフ文字（JS データ）。 |
 | `src-tauri/src/custom.css` | **注入される見た目の唯一の定義元**（build.rs が script.js に埋め込む）。スクロールバー非表示 / フォント / ネイティブ navbar・footer 非表示 / ドラッグ領域 / ウィンドウ操作ボタンのスタイル / プレイヤー関連の調整。 |
 | `src-tauri/tauri.conf.json` | `productName`（表示名 `Prime Video Tauri`）/ `mainBinaryName`（exe 名 `prime-video-tauri`。productName にスペースがあるため必須）/ `version`（リポジトリでは **常に `0.0.0`**、CI が実バージョンを差し込む）/ `identifier` / `resources: ["adg"]` など。ウィンドウタイトルは `lib.rs` の `.title()`。 |
 | `src-tauri/adg/` | 同梱の **AdGuard Browser Extension（GPL-3.0）**。GitHub Releases の `edge-mv3.zip` を展開したもの + 同タグの `LICENSE`。更新時は `gh release download -R AdguardTeam/AdguardBrowserExtension -p edge-mv3.zip` → 中身を差し替え、LICENSE を残す。 |
@@ -86,4 +86,3 @@ cargo check --manifest-path src-tauri/Cargo.toml
 
 - **再生中のタイトルバー領域ドラッグ**（`#pvt-player-dragbar` を上端 60px・`z-index: 2147483646` で固定 + プレイヤー内ボタンを `no-drag`）の OS ドラッグ実挙動は人間の実機確認が必要。
 - **再生中上部コントロールの一瞬のズレ**: コントロール再生成直後は `.pvt-player-topbar` 付与（MutationObserver → rAF）が間に合わず元位置に一瞬出る可能性がある。対策する場合も、動画はウィンドウ全面（ウィンドウ操作ボタンの背面）に表示したまま UI だけを下げること（`#dv-web-player` ごと下げる方式は不可）。
-- **再生開始時のレーティング表示**（`.atvwebplayersdk-top-left-regulatory-overlay`）がタイトルバー領域に重なる場合がある。
