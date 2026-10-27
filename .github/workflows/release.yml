@@ -97,6 +97,7 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         with:
           releaseId: ${{ needs.create_draft_release.outputs.release_id }}
+          releaseAssetNamePattern: '[mainBinaryName]_[arch][setup][ext]'
           args: --target ${{ matrix.target }}
 
   finalize_release:
