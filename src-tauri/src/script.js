@@ -95,17 +95,27 @@ Object.defineProperty(window, 'chrome', {
     return p.startsWith('/gp/video') || p === '/';
   };
 
-  const findPlayerTopbar = () => {
-    const title = document.querySelector('.atvwebplayersdk-title-text') || document.querySelector('.atvwebplayersdk-episode-info');
-    const settings = document.querySelector('#atvwebplayersdk-settings-button');
-    if (!title || !settings) return null;
-    let node = title.parentElement;
-    while (node && node !== document.body && !node.contains(settings)) node = node.parentElement;
-    return node && node !== document.body ? node : null;
+  const findVisiblePlayer = () => {
+    const players = document.querySelectorAll('.atvwebplayersdk-player-container');
+    for (const player of players) {
+      const rect = player.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) return player;
+    }
+    return null;
   };
 
-  const updatePlayerTopbar = (inPlayer) => {
-    const topbar = inPlayer ? findPlayerTopbar() : null;
+  const findPlayerTopbar = (player) => {
+    if (!player) return null;
+    const title = player.querySelector('.atvwebplayersdk-title-text') || player.querySelector('.atvwebplayersdk-episode-info');
+    const settings = player.querySelector('#atvwebplayersdk-settings-button');
+    if (!title || !settings) return null;
+    let node = title.parentElement;
+    while (node && node !== player && !node.contains(settings)) node = node.parentElement;
+    return node && node !== player ? node : null;
+  };
+
+  const updatePlayerTopbar = (player) => {
+    const topbar = findPlayerTopbar(player);
     document.querySelectorAll('.pvt-player-topbar').forEach((node) => {
       if (node !== topbar) node.classList.remove('pvt-player-topbar');
     });
@@ -118,11 +128,9 @@ Object.defineProperty(window, 'chrome', {
     const pvNav = document.querySelector('nav[data-testid="pv-navigation-bar"]');
     const hasNav = !!pvNav || isNavExpectedPath();
     root.classList.toggle('pvt-has-nav', hasNav);
-    const player = document.querySelector('.atvwebplayersdk-player-container');
-    const playerRect = player ? player.getBoundingClientRect() : null;
-    const inPlayer = !!playerRect && playerRect.width > 0 && playerRect.height > 0;
-    root.classList.toggle('pvt-in-player', inPlayer);
-    updatePlayerTopbar(inPlayer);
+    const player = findVisiblePlayer();
+    root.classList.toggle('pvt-in-player', !!player);
+    updatePlayerTopbar(player);
   };
 
   let appWindow = null;
