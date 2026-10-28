@@ -7,6 +7,7 @@ import path from 'node:path';
 const dir = import.meta.dirname;
 const inject = readFileSync(path.join(dir, 'script.js'), 'utf8').replace('__PVT_CSS__', () => JSON.stringify(readFileSync(path.join(dir, 'custom.css'), 'utf8')));
 
+app.disableHardwareAcceleration();
 if (!app.isPackaged) app.commandLine.appendSwitch('remote-debugging-port', process.env.PVT_CDP_PORT || '9222');
 app.userAgentFallback = app.userAgentFallback.replace(/ (Electron|PrimeVideoTauri)\/\S+/g, '');
 
