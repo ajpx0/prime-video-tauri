@@ -69,6 +69,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: 3.x
+          cache: pip
+          cache-dependency-path: .github/workflows/*.yml
 
       - uses: actions/cache@v6
         with:
@@ -76,6 +78,7 @@ jobs:
             ~/AppData/Local/electron/Cache
             ~/AppData/Local/electron-builder/Cache
           key: electron-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: electron-
 
       - run: pnpm install --frozen-lockfile
 
