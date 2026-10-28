@@ -106,7 +106,10 @@ app.on('second-instance', () => {
 app.whenReady().then(async () => {
   connectDiscord();
   ElectronBlocker.fromPrebuiltAdsAndTracking(fetch)
-    .then((blocker) => blocker.enableBlockingInSession(session.defaultSession))
+    .then((blocker) => {
+      blocker.updateFromDiff({ added: ['@@/cdp/usage/getweblabtreatment?'] });
+      blocker.enableBlockingInSession(session.defaultSession);
+    })
     .catch(() => {});
   await components.whenReady().catch((e) => console.error('Widevine CDM failed to initialize:', e));
   createWindow();

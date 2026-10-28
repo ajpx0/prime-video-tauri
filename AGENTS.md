@@ -48,7 +48,7 @@ pnpm dist     # = electron-builder（NSIS インストーラ dist/prime-video-ta
 
 ## 広告ブロック
 
-- **Ghostery**（`ElectronBlocker.fromPrebuiltAdsAndTracking(fetch)` → `enableBlockingInSession(session.defaultSession)`）。起動ごとに CDN から取得（失敗時はブロック無しで起動）。ブロックは `net::ERR_BLOCKED_BY_CLIENT` になる。
+- **Ghostery**（`ElectronBlocker.fromPrebuiltAdsAndTracking(fetch)` → `enableBlockingInSession(session.defaultSession)`）。起動ごとに CDN から取得（失敗時はブロック無しで起動）。ブロックは `net::ERR_BLOCKED_BY_CLIENT` になる。`/cdp/usage/GetWeblabTreatment` はプレイヤー SDK が失敗時に数回リトライし再生ボタンの有効化が約 4 秒遅れるため、`updateFromDiff` で例外（`@@/cdp/usage/getweblabtreatment?`）を追加している。
 - **Prime Video の動画広告**は Ghostery では消えないため、`script.js` 先頭の `window.fetch` ラッパーでレスポンスを書き換える。`/playback/prs/GetVodPlaybackResources` の `vodPlaylistedPlaybackUrls.result.playbackUrls.intraTitlePlaylist` から `type !== 'Main'`（広告枠 `Remote`）を除き、`/cdp/getVideoAds` の `playlist` を空にする（AdGuard の json-prune 相当のキー削除も同時に行う）。`getVideoAds` をネットワークで遮断すると「Chrome をアップデート」エラーになるので不可。
 - AdGuard MV3 は不採用: `session.extensions.loadExtension` で読み込めるが、Electron は `declarativeNetRequest` が API だけ存在して実際にはルールが効かない（動的ルールを追加しても遮断されない）うえ `tabs.create` も無い。
 
