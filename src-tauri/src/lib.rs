@@ -28,6 +28,26 @@ fn make_activity() -> activity::Activity<'static> {
         .timestamps(activity::Timestamps::new().start(start_time as i64))
 }
 
+fn fit_activity_text(text: &str) -> String {
+    let mut fitted = if text.encode_utf16().count() <= 128 {
+        text.to_string()
+    } else {
+        let mut cut = String::new();
+        for c in text.chars() {
+            if cut.encode_utf16().count() + c.len_utf16() > 127 {
+                break;
+            }
+            cut.push(c);
+        }
+        cut.push('…');
+        cut
+    };
+    while fitted.encode_utf16().count() < 2 {
+        fitted.push('\u{2800}');
+    }
+    fitted
+}
+
 #[tauri::command]
 fn update_activity(
     discord: tauri::State<DiscordState>,
@@ -37,6 +57,9 @@ fn update_activity(
     start: Option<i64>,
     end: Option<i64>,
 ) {
+    let details = details.as_deref().map(fit_activity_text);
+    let status = status.as_deref().map(fit_activity_text);
+    let image = image.filter(|image| image.len() <= 256);
     let mut client_lock = discord.client.lock().unwrap();
     let Some(client) = client_lock.as_mut() else {
         return;
