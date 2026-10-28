@@ -109,9 +109,9 @@ Object.defineProperty(window, 'chrome', {
     const container = document.createElement('div');
     container.id = 'pvt-window-controls';
     container.innerHTML = [
+      '<button type="button" class="pvt-wc-btn pvt-wc-close" aria-label="閉じる" title="閉じる">' + ICONS.close + '</button>',
       '<button type="button" class="pvt-wc-btn pvt-wc-min" aria-label="最小化" title="最小化">' + ICONS.minimize + '</button>',
-      '<button type="button" class="pvt-wc-btn pvt-wc-max" aria-label="最大化" title="最大化">' + ICONS.maximize + '</button>',
-      '<button type="button" class="pvt-wc-btn pvt-wc-close" aria-label="閉じる" title="閉じる">' + ICONS.close + '</button>'
+      '<button type="button" class="pvt-wc-btn pvt-wc-max" aria-label="最大化" title="最大化">' + ICONS.maximize + '</button>'
     ].join('');
     return container;
   };

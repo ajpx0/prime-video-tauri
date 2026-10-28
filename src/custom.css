@@ -42,8 +42,7 @@ html:not(.pvt-has-nav) body::before {
 
 nav[data-testid="pv-navigation-bar"] {
     -webkit-app-region: drag !important;
-    padding-left: 46px !important;
-    padding-right: 138px !important;
+    padding-left: 138px !important;
     box-sizing: border-box !important;
 }
 nav[data-testid="pv-navigation-bar"] button,
@@ -144,9 +143,36 @@ a[data-pvt-rich-presence][aria-checked="true"]::before {
     height: 60px;
     -webkit-app-region: no-drag;
 }
-#pvt-window-controls { right: 0; }
-#pvt-back-button { left: 0; }
-#pvt-window-controls .pvt-wc-btn,
+#pvt-window-controls {
+    left: 0;
+    align-items: center;
+    gap: 9px;
+    padding: 0 12px 0 20px;
+}
+#pvt-back-button { left: 92px; }
+#pvt-window-controls .pvt-wc-btn {
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    margin: 0;
+    padding: 0;
+    box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.25);
+    color: transparent;
+    font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets", sans-serif;
+    font-size: 8px;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+}
+#pvt-window-controls .pvt-wc-close { background: #ff5f57; }
+#pvt-window-controls .pvt-wc-min { background: #febc2e; }
+#pvt-window-controls .pvt-wc-max { background: #28c840; }
+#pvt-window-controls:hover .pvt-wc-btn { color: rgba(0, 0, 0, 0.6); }
+#pvt-window-controls .pvt-wc-btn:active { filter: brightness(0.85); }
 #pvt-back-button .pvt-bb-btn {
     width: 46px;
     height: 60px;
@@ -166,17 +192,9 @@ a[data-pvt-rich-presence][aria-checked="true"]::before {
     transition: background-color 120ms ease;
     -webkit-app-region: no-drag;
 }
-#pvt-window-controls .pvt-wc-btn:hover,
 #pvt-back-button .pvt-bb-btn:hover {
     background: rgba(255, 255, 255, 0.1);
 }
-#pvt-window-controls .pvt-wc-btn:active,
 #pvt-back-button .pvt-bb-btn:active {
     background: rgba(255, 255, 255, 0.05);
-}
-#pvt-window-controls .pvt-wc-close:hover {
-    background: #e81123;
-}
-#pvt-window-controls .pvt-wc-close:active {
-    background: #f1707a;
 }
