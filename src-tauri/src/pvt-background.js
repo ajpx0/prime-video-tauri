@@ -1,5 +1,6 @@
 const pvtOpen = async (url) => {
   const href = new URL(url, chrome.runtime.getURL('/')).href;
+  if (/\/pages\/(post-install|thankyou)\.html|[?&]action=thank_you_page/.test(href)) return;
   const tabs = await chrome.tabs.query({});
   const host = tabs.find((tab) => /^https?:/.test(tab.url || ''));
   if (!host) return;
