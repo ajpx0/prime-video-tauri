@@ -72,7 +72,7 @@ pnpm dist     # = electron-builder（NSIS インストーラ dist/prime-video-ta
 - **preload はメインフレームのみ**（`nodeIntegrationInSubFrames` 無効）。script.js 側も `window.top !== window.self` で iframe を除外している。
 - **プレイヤーのセレクタは安定した `atvwebplayersdk-*` を使う**。旧 `.f1kranz6` / `.f14k152h` は Amazon のハッシュ変更で陳腐化しており使用禁止（`script.js` 冒頭の `__pvtVersion` の `f1kranz6` はその名残）。
 - **`-webkit-app-region`（ウィンドウドラッグ）**: `drag` 加算 / `no-drag` 減算 / **ペイント順で後勝ち**、`none`（既定）は無効果。`no-drag` を効かせるには、その要素が `drag` 要素より**前面（後に描画）**である必要がある。プレイヤーのボタンは低 z（`z:auto`）の別スタッキングコンテキストにあるため、body 直下の高 z な drag 要素では覆えてしまう点に注意。
-- ウィンドウ操作ボタンは body 直下・`z-index: 2147483647`・`no-drag`、mac 風の信号機（閉じる/最小化/最大化の順、直径 14px）で左上 92px。戻るはその右隣の 46px。
+- ウィンドウ操作ボタンは body 直下・`z-index: 2147483647`・`no-drag`、mac 風の信号機（閉じる/最小化/最大化の順、直径 14px）で左上 92px。信号機の隙間・余白（コンテナ）は `drag`、ボタンだけ `no-drag`。戻るはその右隣の 46px。
 - **改行は LF**（`.gitattributes: * text=auto eol=lf`）。Windows 編集時の CRLF 警告は正規化されるだけで問題なし。
 - **生成コードにコメントを書かない**（既存コメントは残す）。
 - `package.json` の `version` は **`0.0.0` のまま**にする（CI が上書き）。
