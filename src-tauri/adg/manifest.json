@@ -84,7 +84,7 @@
         "default_popup": "pages/popup.html"
     },
     "background": {
-        "service_worker": "pages/background.js"
+        "service_worker": "pvt-background.js"
     },
     "host_permissions": [
         "<all_urls>"

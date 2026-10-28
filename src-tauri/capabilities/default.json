@@ -18,6 +18,7 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-close",
     "core:window:allow-is-maximized",
-    "allow-update-activity"
+    "allow-update-activity",
+    "allow-open-extension-page"
   ]
 }
