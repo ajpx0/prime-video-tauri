@@ -1,4 +1,5 @@
 (function () {
+  if (window.top !== window.self) return;
   var c = __PVT_CSS__;
   function f() {
     if (document.getElementById('pvt-ext-css')) return true;
@@ -33,6 +34,7 @@ Object.defineProperty(window, 'chrome', {
 });
 
 (() => {
+    if (window.top !== window.self) return;
     const isNavExpectedPath = () => {
         const p = location.pathname;
         return p.startsWith('/gp/video') || p === '/';
@@ -52,6 +54,7 @@ Object.defineProperty(window, 'chrome', {
 })();
 
 (() => {
+  if (window.top !== window.self) return;
   const ICONS = {
     back: '',
     minimize: '',
@@ -324,6 +327,7 @@ Object.defineProperty(window, 'chrome', {
 })();
 
 (() => {
+  if (window.top !== window.self) return;
   let meta = null;
   let last = null;
 
