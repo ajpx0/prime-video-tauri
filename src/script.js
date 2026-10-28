@@ -34,6 +34,50 @@ Object.defineProperty(window, 'chrome', {
 });
 
 (() => {
+    const PRUNE = [
+        'cuepointPlaylist',
+        'vodPlaybackUrls.result.playbackUrls.cuepoints',
+        'vodPlaylistedPlaybackUrls.result.playbackUrls.pauseBehavior',
+        'vodPlaylistedPlaybackUrls.result.playbackUrls.pauseAdsResolution',
+        'vodPlaylistedPlaybackUrls.result.playbackUrls.intraTitlePlaylist.[-].shouldShowOnScrubBar',
+        'ads'
+    ].map((p) => p.split('.'));
+    const del = (obj, [key, ...rest]) => {
+        if (!obj || typeof obj !== 'object') return;
+        if (key === '[-]') {
+            if (Array.isArray(obj)) obj.forEach((item) => del(item, rest));
+        } else if (rest.length) {
+            del(obj[key], rest);
+        } else {
+            delete obj[key];
+        }
+    };
+    const prune = (obj) => {
+        try { PRUNE.forEach((path) => del(obj, path)); } catch (_) {}
+        return obj;
+    };
+    const parse = JSON.parse;
+    JSON.parse = function (...args) {
+        return prune(parse.apply(this, args));
+    };
+    const json = Response.prototype.json;
+    Response.prototype.json = function () {
+        return json.call(this).then(prune);
+    };
+    const open = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+        try {
+            if (String(url).includes('/GetPlaybackResources?')) {
+                const u = new URL(url, location.href);
+                u.searchParams.delete('deviceAdInsertionTypeOverride');
+                url = u.href.replace('%2CCuepointPlaylist', '');
+            }
+        } catch (_) {}
+        return open.call(this, method, url, ...rest);
+    };
+})();
+
+(() => {
     if (window.top !== window.self) return;
     const isNavExpectedPath = () => {
         const p = location.pathname;
