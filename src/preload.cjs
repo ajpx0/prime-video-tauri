@@ -16,7 +16,7 @@ const appWindow = {
 
 contextBridge.exposeInMainWorld('__TAURI__', {
   window: { getCurrentWindow: () => appWindow },
-  core: { invoke: (command, args) => ipcRenderer.invoke(command, args) }
+  core: { invoke: (command, args) => (command === 'update_activity' ? ipcRenderer.invoke(command, args) : Promise.reject(new Error(`unsupported command: ${command}`))) }
 });
 
 webFrame.executeJavaScript(ipcRenderer.sendSync('pvt-inject'));

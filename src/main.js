@@ -1,4 +1,4 @@
-import { app, BrowserWindow, components, ipcMain, session } from 'electron';
+import { app, BrowserWindow, components, ipcMain, session, shell } from 'electron';
 import { ElectronBlocker } from '@ghostery/adblocker-electron';
 import { Client } from '@xhayper/discord-rpc';
 import { readFileSync } from 'node:fs';
@@ -7,6 +7,7 @@ import path from 'node:path';
 const dir = import.meta.dirname;
 const inject = readFileSync(path.join(dir, 'script.js'), 'utf8').replace('__PVT_CSS__', () => JSON.stringify(readFileSync(path.join(dir, 'custom.css'), 'utf8')));
 
+if (!app.requestSingleInstanceLock()) app.exit();
 app.disableHardwareAcceleration();
 if (!app.isPackaged) app.commandLine.appendSwitch('remote-debugging-port', process.env.PVT_CDP_PORT || '9222');
 app.userAgentFallback = app.userAgentFallback.replace(/ (Electron|PrimeVideoTauri)\/\S+/g, '');
@@ -85,18 +86,28 @@ const createWindow = () => {
     webPreferences: { preload: path.join(dir, 'preload.cjs') }
   });
   win.on('page-title-updated', (e) => e.preventDefault());
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
   for (const event of ['maximize', 'unmaximize']) win.on(event, () => win.webContents.send('resized'));
   win.loadURL('https://www.amazon.co.jp/gp/video/storefront');
 };
 
 app.on('window-all-closed', () => app.quit());
 
+app.on('second-instance', () => {
+  const [win] = BrowserWindow.getAllWindows();
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.focus();
+});
+
 app.whenReady().then(async () => {
   connectDiscord();
-  const [, blocker] = await Promise.all([
-    components.whenReady().catch(() => {}),
-    ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).catch(() => null)
-  ]);
-  blocker?.enableBlockingInSession(session.defaultSession);
+  ElectronBlocker.fromPrebuiltAdsAndTracking(fetch)
+    .then((blocker) => blocker.enableBlockingInSession(session.defaultSession))
+    .catch(() => {});
+  await components.whenReady().catch(() => {});
   createWindow();
 });
