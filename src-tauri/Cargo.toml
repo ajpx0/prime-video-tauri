@@ -15,15 +15,16 @@ name = "prime_video_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "=3.0.0-alpha.4", features = [] }
 serde_json = "1"
 
 [dependencies]
-tauri = { version = "^2.6", features = ["devtools"] }
+tauri = { version = "=3.0.0-alpha.5", features = ["devtools"] }
+tauri-runtime-cef = { version = "=3.0.0-alpha.6", features = ["devtools"] }
 discord-rich-presence = "1"
 chrono = "0.4.38"
 # tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2.5.0"
+tauri-plugin-opener = "=3.0.0-alpha.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

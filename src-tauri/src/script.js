@@ -218,6 +218,18 @@ Object.defineProperty(window, 'chrome', {
     ensureMounted();
   }
 
+  document.addEventListener('mousedown', (event) => {
+    if (event.button !== 0 || !(event.target instanceof Element)) return;
+    if (getComputedStyle(event.target).getPropertyValue('-webkit-app-region') !== 'drag') return;
+    const win = getAppWindow();
+    if (!win) return;
+    if (event.detail === 2) {
+      win.toggleMaximize().catch(() => {});
+    } else {
+      win.startDragging().catch(() => {});
+    }
+  }, true);
+
   const startObserving = () => {
     if (!document.body) return;
     const observer = new MutationObserver(() => {

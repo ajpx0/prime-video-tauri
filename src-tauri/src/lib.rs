@@ -89,17 +89,26 @@ fn update_activity(
 
 fn adguard_path() -> String {
     let exe_path = std::env::current_exe().expect("Failed to get current exe path");
-    let exe_dir = exe_path.parent().expect("Failed to get parent directory");
+    let exe_dir = if cfg!(dev) {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+    } else {
+        exe_path.parent().expect("Failed to get parent directory")
+    };
     exe_dir.join("adg").to_str().unwrap().to_string()
 }
 
-fn browser_args() -> String {
-    let cdp_flag = if cfg!(debug_assertions) {
-        " --remote-debugging-port=9222"
+fn cef_runtime() -> tauri_runtime_cef::Cef {
+    let cef = tauri_runtime_cef::Cef::default()
+        .command_line_arg("--load-extension", Some(adguard_path()))
+        .command_line_arg("--disable-gpu", None::<String>);
+    if cfg!(debug_assertions) {
+        cef.remote_debugging(tauri_runtime_cef::RemoteDebugging::Port {
+            port: 9222,
+            allowed_origins: Vec::new(),
+        })
     } else {
-        ""
-    };
-    format!("--load-extension=\"{}\" --disable-gpu{}", adguard_path(), cdp_flag)
+        cef
+    }
 }
 
 fn extension_id(path: &str) -> String {
@@ -143,8 +152,6 @@ async fn open_extension_page(app: tauri::AppHandle, url: String) -> Result<(), S
         .title("AdGuard")
         .inner_size(1100.0, 800.0)
         .background_color(tauri::utils::config::Color(45, 45, 45, 255))
-        .browser_extensions_enabled(true)
-        .additional_browser_args(&browser_args())
         .build()
         .map_err(|e| e.to_string())?;
     Ok(())
@@ -158,16 +165,17 @@ fn refresh_extension_worker(app: &tauri::App) {
         hasher.update(std::fs::read(adg.join(file)).unwrap_or_default());
     }
     let digest = format!("{:x}", hasher.finalize());
-    let Ok(dir) = app.path().app_local_data_dir() else {
+    let Ok(dir) = app.path().app_cache_dir().map(|dir| dir.join("cef")) else {
         return;
     };
     let marker = dir.join("adg-digest");
     if std::fs::read_to_string(&marker).ok().as_deref() == Some(digest.as_str()) {
         return;
     }
-    let worker = dir.join("EBWebView").join("Default").join("Service Worker");
-    let _ = std::fs::remove_dir_all(worker.join("ScriptCache"));
-    let _ = std::fs::remove_dir_all(worker.join("Database"));
+    for profile in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
+        let worker = profile.path().join("Service Worker");
+        let _ = std::fs::remove_dir_all(worker.join("ScriptCache"));
+    }
     let _ = std::fs::create_dir_all(&dir);
     let _ = std::fs::write(marker, digest);
 }
@@ -181,6 +189,7 @@ pub fn run() {
     };
 
     tauri::Builder::default()
+        .runtime(cef_runtime())
         .manage(discord_state)
         .setup(move |app| {
             let handle = app.handle();
@@ -199,8 +208,7 @@ pub fn run() {
 
             refresh_extension_worker(app);
 
-            #[allow(unused_mut)]
-            let mut builder = tauri::WebviewWindowBuilder::new(
+            tauri::WebviewWindowBuilder::new(
                 app,
                 "main",
                 tauri::WebviewUrl::App("https://www.amazon.co.jp/gp/video/storefront".into()),
@@ -210,16 +218,8 @@ pub fn run() {
             .min_inner_size(990.0, 600.0)
             .background_color(tauri::utils::config::Color(45, 45, 45, 255))
             .decorations(false)
-            .browser_extensions_enabled(true)
-            .additional_browser_args(&browser_args());
-
-            #[cfg(target_os = "windows")]
-            {
-                builder = builder
-                    .initialization_script(include_str!(concat!(env!("OUT_DIR"), "/inject.js")));
-            }
-
-            builder.build()?;
+            .initialization_script(include_str!(concat!(env!("OUT_DIR"), "/inject.js")))
+            .build()?;
 
             Ok(())
         })

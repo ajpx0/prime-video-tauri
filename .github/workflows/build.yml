@@ -40,6 +40,9 @@ jobs:
           workspaces: src-tauri
           key: ${{ matrix.target }}
 
+      - name: Install Ninja
+        run: choco install ninja -y --no-progress
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
