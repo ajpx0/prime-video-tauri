@@ -90,7 +90,7 @@ pnpm dist     # = electron-builder（NSIS インストーラ dist/prime-video-ta
 ## CI / リリース
 
 - **`release.yml`（`main` への push で起動）**: **push されたコミットのメッセージがそのままバージョン**になる（`github.event.head_commit.message`。本文や前後の空白も含むため、メッセージはバージョン番号のみにする）。`set_version`（`jaywcjlove/github-action-package` で name 取得）→ ドラフトリリース作成 → `publish`（`jaywcjlove/github-action-package` で `package.json` の version を差し替え、`pnpm dist --publish never` で NSIS をビルドし `softprops/action-gh-release` でドラフトに添付）→ リリース確定。
-  - secrets `EVS_ACCOUNT_NAME` / `EVS_PASSWD` は**必須**（未署名だと Prime Video がエラー 7031 で再生できないため、無ければジョブを失敗させる）。`castlabs-evs` を入れて `reauth` し、`EVS_SIGN=1` で VMP 署名、ビルド後に `evs-vmp verify-pkg dist/win-unpacked` で検証する。
+  - secrets `EVS_ACCOUNT_NAME` / `EVS_PASSWD` は**必須**（未署名だと Prime Video がエラー 7031 で再生できないため、無ければ `reauth` が失敗してジョブが落ちる）。`castlabs-evs` を入れて `reauth` し（Windows 既定の pwsh で実行）、ジョブ env の `EVS_SIGN=1` で VMP 署名、ビルド後に `evs-vmp verify-pkg dist/win-unpacked` で検証する。
   - Electron / electron-builder のダウンロードキャッシュ（`~/AppData/Local/electron{,-builder}/Cache`）を `actions/cache` で `pnpm-lock.yaml` のハッシュをキーに保存し、`restore-keys: electron-` で lockfile 変更時も前回分を流用する。`castlabs-evs` の pip キャッシュは `setup-python` の `cache: pip`（キーはワークフローファイルのハッシュ）。いずれも `build.yml` も同様。
   - したがって **main へのコミットのタイトルは `0.0.7` のようなバージョン番号にする**。SemVer 上 `0.0.6-1 < 0.0.6` になる点に注意。
   - アセット名は `prime-video-tauri_x64-setup.exe`（`artifactName`、バージョンを含まない）。
