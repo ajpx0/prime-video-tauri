@@ -64,6 +64,23 @@ Object.defineProperty(window, 'chrome', {
     Response.prototype.json = function () {
         return json.call(this).then(prune);
     };
+    const origFetch = window.fetch;
+    window.fetch = async function (...args) {
+        const res = await origFetch.apply(this, args);
+        const url = String((args[0] && args[0].url) || args[0] || '');
+        const ads = url.includes('/cdp/getVideoAds');
+        if (!ads && !url.includes('PlaybackResources?')) return res;
+        try {
+            const obj = await res.clone().json();
+            if (ads && Array.isArray(obj.playlist)) obj.playlist = [];
+            const urls = obj.vodPlaylistedPlaybackUrls && obj.vodPlaylistedPlaybackUrls.result && obj.vodPlaylistedPlaybackUrls.result.playbackUrls;
+            if (urls && Array.isArray(urls.intraTitlePlaylist)) urls.intraTitlePlaylist = urls.intraTitlePlaylist.filter((item) => item.type === 'Main');
+            prune(obj);
+            return new Response(JSON.stringify(obj), { status: res.status, statusText: res.statusText, headers: res.headers });
+        } catch (_) {
+            return res;
+        }
+    };
     const open = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function (method, url, ...rest) {
         try {
