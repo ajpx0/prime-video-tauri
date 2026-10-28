@@ -26,7 +26,7 @@ Amazon Prime Video（`https://www.amazon.co.jp/gp/video/storefront`）を **cast
 | `src/script.js` | 注入される JS（Tauri 版から無変更）。先頭に **`__PVT_CSS__` を使う CSS 注入 IIFE**（`documentElement` 出現を待って `<style id="pvt-ext-css">` 追加）。ウィンドウ操作ボタン / 戻る / タイトルバー背景 / 再生中ドラッグバー（`#pvt-player-dragbar`）の生成。`pvt-has-nav`（ナビ有無）・`pvt-in-player`（サイズ > 0 の `.atvwebplayersdk-player-container` 有無。0×0 のコンテナも DOM に残るため可視判定が必須）のトグル。再生中はタイトル（無ければ閉じるボタン。再生開始直後のレーティング表示中はタイトルが DOM に無い）〜設定ボタンを含む祖先に `.pvt-player-topbar` を付け、CSS で 60px 下げる。レーティング表示（`.atvwebplayersdk-top-left-regulatory-overlay`）は `.pvt-player-topbar` の外にある場合だけ CSS で単独に 60px 下げる（中にある場合は二重にならないよう打ち消す）。`const ICONS` はボタンのグリフ文字（JS データ）。 |
 | `src/custom.css` | **注入される見た目の唯一の定義元**（main.js が script.js に埋め込む）。スクロールバー非表示 / フォント / ネイティブ navbar・footer 非表示 / ドラッグ領域 / ウィンドウ操作ボタンのスタイル / プレイヤー関連の調整。 |
 | `scripts/evs-sign.cjs` | electron-builder の `win.signtoolOptions.sign`（カスタム署名）。`EVS_SIGN=1` かつ対象が `prime-video-tauri.exe` のときだけ `evs-vmp sign-pkg <dir>` で VMP 署名（未設定なら何もしない＝未署名ビルド）。`afterPack` だと後続の rcedit（exe リソース書き換え）で署名が壊れ、`afterSign` は Authenticode 証明書が無いとスキップされるため、この位置で行う。確認は `evs-vmp verify-pkg dist/win-unpacked`。 |
-| `package.json` | `main` / scripts / electron-builder 設定（`build`）。`productName`（表示名 `Prime Video Tauri`）/ `executableName`（exe 名 `prime-video-tauri`）/ `electronVersion` と `electronDownload`（castLabs の mirror `…/releases/download/` と `<ver>+wvcus`。mirror 末尾に `v` を付けると `vv…` になり 404）/ `artifactName`（`${name}_${arch}-setup.${ext}`、バージョン無し）/ `win.target: [nsis, dir]`。`version` はリポジトリでは **常に `0.0.0`**。 |
+| `package.json` | `main` / scripts / electron-builder 設定（`build`）。`productName`（表示名 `Prime Video Tauri`）/ `executableName`（exe 名 `prime-video-tauri`）/ `electronVersion` と `electronDownload`（castLabs の mirror `…/releases/download/` と `<ver>+wvcus`。mirror 末尾に `v` を付けると `vv…` になり 404）/ `artifactName`（`${name}_${arch}-setup.${ext}`、バージョン無し）/ `win.target: nsis`（`win-unpacked` も出力される）。`version` はリポジトリでは **常に `0.0.0`**。 |
 | `.github/workflows/` | `build.yml`（main 以外への push でビルド検証）/ `release.yml`（main への push でリリース）/ `create_release_commit.yml`（手動実行でリリース用マージコミット作成）。 |
 
 ## 開発・ビルドコマンド
@@ -49,6 +49,7 @@ pnpm dist     # = electron-builder（NSIS インストーラ dist/prime-video-ta
 ## 広告ブロック
 
 - **Ghostery**（`ElectronBlocker.fromPrebuiltAdsAndTracking(fetch)` → `enableBlockingInSession(session.defaultSession)`）。起動ごとに CDN から取得（失敗時はブロック無しで起動）。ブロックは `net::ERR_BLOCKED_BY_CLIENT` になる。
+- **Prime Video の動画広告**は Ghostery では消えないため、`script.js` 先頭の `window.fetch` ラッパーでレスポンスを書き換える。`/playback/prs/GetVodPlaybackResources` の `vodPlaylistedPlaybackUrls.result.playbackUrls.intraTitlePlaylist` から `type !== 'Main'`（広告枠 `Remote`）を除き、`/cdp/getVideoAds` の `playlist` を空にする（AdGuard の json-prune 相当のキー削除も同時に行う）。`getVideoAds` をネットワークで遮断すると「Chrome をアップデート」エラーになるので不可。
 - AdGuard MV3 は不採用: `session.extensions.loadExtension` で読み込めるが、Electron は `declarativeNetRequest` が API だけ存在して実際にはルールが効かない（動的ルールを追加しても遮断されない）うえ `tabs.create` も無い。
 
 ## Discord Rich Presence
@@ -89,7 +90,8 @@ pnpm dist     # = electron-builder（NSIS インストーラ dist/prime-video-ta
 ## CI / リリース
 
 - **`release.yml`（`main` への push で起動）**: **push されたコミットのタイトルがそのままバージョン**になる（`git log -1 --format=%s`）。`set_version` → ドラフトリリース作成 → `publish`（`sed` で `package.json` の version を差し替え、`pnpm dist --publish never` で NSIS をビルドし `gh release upload` でドラフトに添付）→ リリース確定。
-  - secrets `EVS_ACCOUNT_NAME` / `EVS_PASSWD` があれば `castlabs-evs` を入れて `reauth` し、`EVS_SIGN=1` で VMP 署名する（無ければスキップ＝未署名）。
+  - secrets `EVS_ACCOUNT_NAME` / `EVS_PASSWD` は**必須**（未署名だと Prime Video がエラー 7031 で再生できないため、無ければジョブを失敗させる）。`castlabs-evs` を入れて `reauth` し、`EVS_SIGN=1` で VMP 署名、ビルド後に `evs-vmp verify-pkg dist/win-unpacked` で検証する。
+  - Electron / electron-builder のダウンロードキャッシュ（`~/AppData/Local/electron{,-builder}/Cache`）を `actions/cache` で `pnpm-lock.yaml` のハッシュをキーに保存する（`build.yml` も同様）。
   - したがって **main へのコミットのタイトルは `0.0.7` のようなバージョン番号にする**。SemVer 上 `0.0.6-1 < 0.0.6` になる点に注意。
   - アセット名は `prime-video-tauri_x64-setup.exe`（`artifactName`、バージョンを含まない）。
 - **`create_release_commit.yml`（`workflow_dispatch`）**: 入力 `source_branch`（既定 `develop`）と `version`（`x.y.z`）で、GitHub App トークン（`secrets.APP_PRIVATE_KEY`）を使い `source_branch → main` をマージコミット（タイトル = version）として作成 → `release.yml` が起動する。`GITHUB_TOKEN` での push はワークフローを起動しないため App トークンが必須。

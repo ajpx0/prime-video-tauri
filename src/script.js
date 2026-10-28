@@ -22,11 +22,6 @@
 
 window.__pvtVersion = '2026-05-24-f1kranz6';
 
-Object.defineProperty(window, 'EmbeddedBrowserWebView', {
-    value: undefined,
-    writable: false,
-    configurable: false
-});
 Object.defineProperty(window, 'chrome', {
     value: undefined,
     writable: false,
@@ -56,14 +51,6 @@ Object.defineProperty(window, 'chrome', {
         try { PRUNE.forEach((path) => del(obj, path)); } catch (_) {}
         return obj;
     };
-    const parse = JSON.parse;
-    JSON.parse = function (...args) {
-        return prune(parse.apply(this, args));
-    };
-    const json = Response.prototype.json;
-    Response.prototype.json = function () {
-        return json.call(this).then(prune);
-    };
     const origFetch = window.fetch;
     window.fetch = async function (...args) {
         const res = await origFetch.apply(this, args);
@@ -80,17 +67,6 @@ Object.defineProperty(window, 'chrome', {
         } catch (_) {
             return res;
         }
-    };
-    const open = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-        try {
-            if (String(url).includes('/GetPlaybackResources?')) {
-                const u = new URL(url, location.href);
-                u.searchParams.delete('deviceAdInsertionTypeOverride');
-                url = u.href.replace('%2CCuepointPlaylist', '');
-            }
-        } catch (_) {}
-        return open.call(this, method, url, ...rest);
     };
 })();
 

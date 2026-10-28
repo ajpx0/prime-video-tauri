@@ -31,10 +31,7 @@
       "signtoolOptions": {
         "sign": "scripts/evs-sign.cjs"
       },
-      "target": [
-        "nsis",
-        "dir"
-      ]
+      "target": "nsis"
     }
   },
   "devDependencies": {

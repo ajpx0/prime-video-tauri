@@ -1,10 +1,12 @@
 const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
+const call = (command) => () => ipcRenderer.invoke('window', command);
+
 const appWindow = {
-  minimize: () => ipcRenderer.invoke('window', 'minimize'),
-  toggleMaximize: () => ipcRenderer.invoke('window', 'toggleMaximize'),
-  close: () => ipcRenderer.invoke('window', 'close'),
-  isMaximized: () => ipcRenderer.invoke('window', 'isMaximized'),
+  minimize: call('minimize'),
+  toggleMaximize: call('toggleMaximize'),
+  close: call('close'),
+  isMaximized: call('isMaximized'),
   onResized: (callback) => {
     const listener = () => callback();
     ipcRenderer.on('resized', listener);

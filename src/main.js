@@ -28,24 +28,25 @@ const fitActivityText = (text) => {
 };
 
 const discord = new Client({ clientId: '739528267039768647' });
-let discordReady = false;
 let activity = null;
+let retry = null;
 
 const sendActivity = () => {
-  if (discordReady) discord.user?.setActivity(activity || makeActivity()).catch(() => {});
+  if (discord.isConnected) discord.user?.setActivity(activity || makeActivity()).catch(() => {});
+};
+
+const scheduleConnect = () => {
+  retry ??= setTimeout(() => {
+    retry = null;
+    connectDiscord();
+  }, 15000);
 };
 
 const connectDiscord = () => {
-  discord.login().then(() => {
-    discordReady = true;
-    sendActivity();
-  }).catch(() => setTimeout(connectDiscord, 15000));
+  discord.login().then(sendActivity).catch(scheduleConnect);
 };
 
-discord.on('disconnected', () => {
-  discordReady = false;
-  setTimeout(connectDiscord, 15000);
-});
+discord.on('disconnected', scheduleConnect);
 
 ipcMain.handle('update_activity', (_, { details, status, image, start, end } = {}) => {
   if (details == null) {
