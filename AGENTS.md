@@ -95,7 +95,7 @@ pnpm dist     # = electron-builder（NSIS インストーラ dist/prime-video-ta
   - したがって **main へのコミットのタイトルは `0.0.7` のようなバージョン番号にする**。SemVer 上 `0.0.6-1 < 0.0.6` になる点に注意。
   - アセット名は `prime-video-tauri_x64-setup.exe`（`artifactName`、バージョンを含まない）。
 - **`create_release_commit.yml`（`workflow_dispatch`）**: 入力 `source_branch`（既定 `develop`）と `version`（`x.y.z`）で、GitHub App トークン（`secrets.APP_PRIVATE_KEY`）を使い `source_branch → main` をマージコミット（タイトル = version）として作成 → `release.yml` が起動する。`GITHUB_TOKEN` での push はワークフローを起動しないため App トークンが必須。
-- **`build.yml`（main 以外への push）**: `pnpm build` でビルド検証のみ。
+- **`build.yml`（main 以外への push）**: `release.yml` と同じ手順で VMP 署名して `pnpm build` し、`verify-pkg` で検証する（リリースはしない）。
 - pnpm のバージョンはワークフローで明示指定せず、`package.json` の `packageManager` を単一ソースにする（`pnpm/action-setup` の `version` 指定は併用すると競合エラーになるため付けない）。
 
 ## コミット / PR 規約

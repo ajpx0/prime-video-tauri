@@ -13,6 +13,10 @@ jobs:
   build:
     runs-on: windows-latest
 
+    env:
+      EVS_ACCOUNT_NAME: ${{ secrets.EVS_ACCOUNT_NAME }}
+      EVS_PASSWD: ${{ secrets.EVS_PASSWD }}
+
     steps:
       - uses: actions/checkout@v7
 
@@ -23,6 +27,10 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: 3.x
+
       - uses: actions/cache@v6
         with:
           path: |
@@ -32,4 +40,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - shell: bash
+        run: |
+          if [ -z "$EVS_ACCOUNT_NAME" ] || [ -z "$EVS_PASSWD" ]; then
+            echo "::error::EVS_ACCOUNT_NAME / EVS_PASSWD secrets are required for VMP signing"
+            exit 1
+          fi
+          python -m pip install castlabs-evs==1.3.2
+          evs-account -n reauth -A "$EVS_ACCOUNT_NAME" -P "$EVS_PASSWD"
+          echo "EVS_SIGN=1" >> "$GITHUB_ENV"
+
       - run: pnpm build
+
+      - run: evs-vmp verify-pkg dist/win-unpacked
