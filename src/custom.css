@@ -45,6 +45,10 @@ nav[data-testid="pv-navigation-bar"] {
     padding-left: 138px !important;
     box-sizing: border-box !important;
 }
+.pvt-win-controls nav[data-testid="pv-navigation-bar"] {
+    padding-left: 46px !important;
+    padding-right: 138px !important;
+}
 nav[data-testid="pv-navigation-bar"] button,
 nav[data-testid="pv-navigation-bar"] a,
 nav[data-testid="pv-navigation-bar"] input {
@@ -61,14 +65,14 @@ nav[data-testid="pv-navigation-bar"] [data-testid="pv-nav-branding"] {
     max-width: none !important;
 }
 
-a[data-pvt-rich-presence] {
+a[data-pvt-toggle] {
     display: inline-flex !important;
     align-items: center;
     gap: 8px;
     cursor: pointer;
     user-select: none;
 }
-a[data-pvt-rich-presence]::before {
+a[data-pvt-toggle]::before {
     content: '';
     flex: none;
     width: 14px;
@@ -81,7 +85,7 @@ a[data-pvt-rich-presence]::before {
     line-height: 14px;
     text-align: center;
 }
-a[data-pvt-rich-presence][aria-checked="true"]::before {
+a[data-pvt-toggle][aria-checked="true"]::before {
     content: '✓';
     border-color: #1a98ff;
     background: #1a98ff;
@@ -174,6 +178,15 @@ a[data-pvt-rich-presence][aria-checked="true"]::before {
 #pvt-window-controls .pvt-wc-max { background: #28c840; }
 #pvt-window-controls:hover .pvt-wc-btn { color: rgba(0, 0, 0, 0.6); }
 #pvt-window-controls .pvt-wc-btn:active { filter: brightness(0.85); }
+.pvt-win-controls #pvt-window-controls {
+    left: auto;
+    right: 0;
+    gap: 0;
+    padding: 0;
+    -webkit-app-region: no-drag;
+}
+.pvt-win-controls #pvt-back-button { left: 0; }
+.pvt-win-controls #pvt-window-controls .pvt-wc-btn,
 #pvt-back-button .pvt-bb-btn {
     width: 46px;
     height: 60px;
@@ -193,9 +206,25 @@ a[data-pvt-rich-presence][aria-checked="true"]::before {
     transition: background-color 120ms ease;
     -webkit-app-region: no-drag;
 }
+.pvt-win-controls #pvt-window-controls .pvt-wc-btn:hover,
 #pvt-back-button .pvt-bb-btn:hover {
     background: rgba(255, 255, 255, 0.1);
 }
+.pvt-win-controls #pvt-window-controls .pvt-wc-btn:active,
 #pvt-back-button .pvt-bb-btn:active {
     background: rgba(255, 255, 255, 0.05);
+}
+.pvt-win-controls #pvt-window-controls .pvt-wc-btn {
+    border-radius: 0;
+    box-shadow: none;
+    filter: none;
+}
+.pvt-win-controls #pvt-window-controls .pvt-wc-close {
+    order: 1;
+}
+.pvt-win-controls #pvt-window-controls .pvt-wc-close:hover {
+    background: #e81123;
+}
+.pvt-win-controls #pvt-window-controls .pvt-wc-close:active {
+    background: #f1707a;
 }

@@ -85,6 +85,7 @@ Object.defineProperty(window, 'chrome', {
         const root = document.documentElement;
         if (!root) return false;
         if (isNavExpectedPath()) root.classList.add('pvt-has-nav');
+        try { root.classList.toggle('pvt-win-controls', localStorage.getItem('pvt-mac-controls') !== 'on'); } catch (_) {}
         return true;
     };
     if (!apply()) {
@@ -167,9 +168,19 @@ Object.defineProperty(window, 'chrome', {
     if (topbar) topbar.classList.add('pvt-player-topbar');
   };
 
+  const SETTING_DEFAULTS = { 'pvt-rich-presence': true, 'pvt-mac-controls': false };
+
+  const isSettingOn = (key) => {
+    try {
+      const value = localStorage.getItem(key);
+      return value ? value === 'on' : SETTING_DEFAULTS[key];
+    } catch (_) { return SETTING_DEFAULTS[key]; }
+  };
+
   const updateTitleBarVisibility = () => {
     const root = document.documentElement;
     if (!root) return;
+    root.classList.toggle('pvt-win-controls', !isSettingOn('pvt-mac-controls'));
     const pvNav = document.querySelector('nav[data-testid="pv-navigation-bar"]');
     const hasNav = !!pvNav || isNavExpectedPath();
     root.classList.toggle('pvt-has-nav', hasNav);
@@ -299,12 +310,8 @@ Object.defineProperty(window, 'chrome', {
     list.prepend(newItem);
   };
 
-  const isRichPresenceOn = () => {
-    try { return localStorage.getItem('pvt-rich-presence') !== 'off'; } catch (_) { return true; }
-  };
-
-  const ensureRichPresenceItem = (container) => {
-    if (!container || container.querySelector('[data-pvt-rich-presence]')) return;
+  const ensureToggleItem = (container, key, label) => {
+    if (!container || container.querySelector(`[data-pvt-toggle="${key}"]`)) return;
     const list = container.querySelector('ul');
     if (!list) return;
     const sample = list.querySelector('li');
@@ -312,21 +319,21 @@ Object.defineProperty(window, 'chrome', {
     const newItem = sample.cloneNode(true);
     const link = newItem.querySelector('a');
     if (!link) return;
-    link.setAttribute('data-pvt-rich-presence', 'true');
+    link.setAttribute('data-pvt-toggle', key);
     link.setAttribute('role', 'checkbox');
-    link.setAttribute('aria-label', 'Rich Presence');
-    link.setAttribute('aria-checked', String(isRichPresenceOn()));
+    link.setAttribute('aria-label', label);
+    link.setAttribute('aria-checked', String(isSettingOn(key)));
     link.removeAttribute('href');
     link.removeAttribute('data-testid');
     link.removeAttribute('data-pvt-login');
     const labelSpan = link.querySelector('span');
-    if (labelSpan) labelSpan.textContent = 'Rich Presence';
+    if (labelSpan) labelSpan.textContent = label;
     link.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      try { localStorage.setItem('pvt-rich-presence', isRichPresenceOn() ? 'off' : 'on'); } catch (_) {}
-      document.querySelectorAll('[data-pvt-rich-presence]').forEach((node) => node.setAttribute('aria-checked', String(isRichPresenceOn())));
-      window.dispatchEvent(new Event('pvt-rich-presence'));
+      try { localStorage.setItem(key, isSettingOn(key) ? 'off' : 'on'); } catch (_) {}
+      document.querySelectorAll(`[data-pvt-toggle="${key}"]`).forEach((node) => node.setAttribute('aria-checked', String(isSettingOn(key))));
+      window.dispatchEvent(new Event(key));
     });
     list.appendChild(newItem);
   };
@@ -334,9 +341,12 @@ Object.defineProperty(window, 'chrome', {
   const scanAccountDropdowns = () => {
     document.querySelectorAll('[data-testid="pv-nav-account-and-profiles-dropdown-section-container"]').forEach((container) => {
       ensureLoginItem(container);
-      ensureRichPresenceItem(container);
+      ensureToggleItem(container, 'pvt-rich-presence', 'Rich Presence');
+      ensureToggleItem(container, 'pvt-mac-controls', 'macOS風コントロール');
     });
   };
+
+  window.addEventListener('pvt-mac-controls', updateTitleBarVisibility);
 
   const startDropdownObserver = () => {
     const root = document.body || document.documentElement;
