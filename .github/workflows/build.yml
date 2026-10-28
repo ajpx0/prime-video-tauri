@@ -16,7 +16,6 @@ jobs:
       matrix:
         include:
           - platform: windows-latest
-            target: x86_64-pc-windows-msvc
             name: windows-x64
 
     runs-on: ${{ matrix.platform }}
@@ -31,17 +30,8 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-          key: ${{ matrix.target }}
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Tauri app
+      - name: Build app
         run: pnpm build
