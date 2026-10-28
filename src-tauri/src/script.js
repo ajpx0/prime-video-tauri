@@ -327,7 +327,7 @@ Object.defineProperty(window, 'chrome', {
   let meta = null;
   let last = null;
 
-  const findVideo = () => [...document.querySelectorAll('#dv-web-player video')].find((v) => (v.currentSrc || '').startsWith('blob:') && v.getBoundingClientRect().width > 0);
+  const findVideo = () => [...document.querySelectorAll('[id^="dv-web-player"] video')].find((v) => (v.currentSrc || '').startsWith('blob:') && v.getBoundingClientRect().width > 0);
 
   const report = () => {
     const core = window.__TAURI__ && window.__TAURI__.core;
