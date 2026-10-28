@@ -63,7 +63,12 @@ Object.defineProperty(window, 'chrome', {
             const urls = obj.vodPlaylistedPlaybackUrls && obj.vodPlaylistedPlaybackUrls.result && obj.vodPlaylistedPlaybackUrls.result.playbackUrls;
             if (urls && Array.isArray(urls.intraTitlePlaylist)) urls.intraTitlePlaylist = urls.intraTitlePlaylist.filter((item) => item.type === 'Main');
             prune(obj);
-            return new Response(JSON.stringify(obj), { status: res.status, statusText: res.statusText, headers: res.headers });
+            const headers = new Headers(res.headers);
+            headers.delete('content-length');
+            headers.delete('content-encoding');
+            const out = new Response(JSON.stringify(obj), { status: res.status, statusText: res.statusText, headers });
+            ['url', 'redirected', 'type'].forEach((key) => Object.defineProperty(out, key, { value: res[key] }));
+            return out;
         } catch (_) {
             return res;
         }

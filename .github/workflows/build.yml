@@ -30,8 +30,6 @@ jobs:
             ~/AppData/Local/electron-builder/Cache
           key: electron-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-      - name: Build app
-        run: pnpm build
+      - run: pnpm build

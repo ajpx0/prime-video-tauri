@@ -44,7 +44,7 @@ const scheduleConnect = () => {
 };
 
 const connectDiscord = () => {
-  discord.login().then(sendActivity).catch(scheduleConnect);
+  discord.login().then(sendActivity).catch(() => discord.destroy().catch(() => {}).then(scheduleConnect));
 };
 
 discord.on('disconnected', scheduleConnect);
@@ -108,6 +108,6 @@ app.whenReady().then(async () => {
   ElectronBlocker.fromPrebuiltAdsAndTracking(fetch)
     .then((blocker) => blocker.enableBlockingInSession(session.defaultSession))
     .catch(() => {});
-  await components.whenReady().catch(() => {});
+  await components.whenReady().catch((e) => console.error('Widevine CDM failed to initialize:', e));
   createWindow();
 });
