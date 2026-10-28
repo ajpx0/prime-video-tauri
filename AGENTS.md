@@ -120,7 +120,8 @@ cargo check --manifest-path src-tauri/Cargo.toml
 
 ## 既知の残課題
 
-- **CEF 版の Prime Video 再生**: 上記のとおり H.264 / AAC 非対応・L3 のみで、ログインしての実再生は未検証。
+- **CEF 版の Prime Video 再生は不可（エラー 7031）**: 原因は 2 つ。CEF 公式配布版が H.264 / AAC 非対応で `addSourceBuffer`（`avc1` / `mp4a.40.2`）が `NotSupportedError` になること、VMP 署名が無く `GetWidevineLicense` が HTTP 403（`Denied`）になること。前者は proprietary codecs 有効の CEF 自前ビルドで解消可能だが、後者は個人で正規に署名する手段が無いため、このブランチは WIP のまま保留。
+- **CDP が開かなくなる**: release ビルドを一度起動すると `%LOCALAPPDATA%\net.aariy.prime-video-tauri\cef\Local State` に `devtools.remote_debugging.allowed=false` が保存され、以後の debug ビルドで CDP が拒否される（dev / release でキャッシュ先を分けるのが対策候補）。
 - **CEF 版のウィンドウドラッグ**（`startDragging` 代替）の実機確認は未完了。
 - **再生中のタイトルバー領域ドラッグ**（`#pvt-player-dragbar` を上端 60px・`z-index: 2147483646` で固定 + プレイヤー内ボタンを `no-drag`）の OS ドラッグ実挙動は人間の実機確認が必要。
 - **再生中上部コントロールの一瞬のズレ**: コントロール再生成直後は `.pvt-player-topbar` 付与（MutationObserver → rAF）が間に合わず元位置に一瞬出る可能性がある。対策する場合も、動画はウィンドウ全面（ウィンドウ操作ボタンの背面）に表示したまま UI だけを下げること（`#dv-web-player` ごと下げる方式は不可）。
