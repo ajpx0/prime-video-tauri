@@ -72,7 +72,7 @@ pnpm dist     # = electron-builder（NSIS インストーラ dist/prime-video-ta
 
 - **preload はメインフレームのみ**（`nodeIntegrationInSubFrames` 無効）。script.js 側も `window.top !== window.self` で iframe を除外している。
 - **プレイヤーのセレクタは安定した `atvwebplayersdk-*` を使う**。旧 `.f1kranz6` / `.f14k152h` は Amazon のハッシュ変更で陳腐化しており使用禁止（`script.js` 冒頭の `__pvtVersion` の `f1kranz6` はその名残）。
-- **`-webkit-app-region`（ウィンドウドラッグ）**: `drag` 加算 / `no-drag` 減算 / **ペイント順で後勝ち**、`none`（既定）は無効果。`no-drag` を効かせるには、その要素が `drag` 要素より**前面（後に描画）**である必要がある。プレイヤーのボタンは低 z（`z:auto`）の別スタッキングコンテキストにあるため、body 直下の高 z な drag 要素では覆えてしまう点に注意。
+- **`-webkit-app-region`（ウィンドウドラッグ）**: `drag` 加算 / `no-drag` 減算 / **ペイント順で後勝ち**、`none`（既定）は無効果。`no-drag` を効かせるには、その要素が `drag` 要素より**前面（後に描画）**である必要がある。プレイヤーのボタンは低 z（`z:auto`）の別スタッキングコンテキストにあるため、body 直下の高 z な drag 要素では覆えてしまう点に注意。また値は**子孫に継承**される（`visibility: hidden` の要素は領域に含まれない）ため、ナビバー（`drag`）配下に出る検索・カテゴリ・アカウントのドロップダウン（`[data-testid$="-dropdown"]`）と全画面の `dropdown-page-overlay` は `no-drag` にしている（しないと検索を開いた間ウィンドウ全体がドラッグ領域になる）。
 - ウィンドウ操作ボタンは body 直下・`z-index: 2147483647`・`no-drag`。アカウントメニューの「macOS風コントロール」チェックボックス（`localStorage` の `pvt-mac-controls`、既定オフ）で切替。オフ時は `html.pvt-win-controls`（`script.js` 先頭の IIFE でも早期に付与）で Windows 風（右上 138px・各 46px、最小化/最大化/閉じるの順、戻るは左上 46px）。オン時は mac 風の信号機（閉じる/最小化/最大化の順、直径 14px）で左上 92px、信号機の隙間・余白（コンテナ）は `drag`、ボタンだけ `no-drag`、戻るはその右隣の 46px。チェックボックス項目は `ensureToggleItem`（`data-pvt-toggle="<key>"`、既定値は `SETTING_DEFAULTS`）で追加し、切替時に `<key>` 名のイベントを `window` に発火する。
 - **改行は LF**（`.gitattributes: * text=auto eol=lf`）。Windows 編集時の CRLF 警告は正規化されるだけで問題なし。
 - **生成コードにコメントを書かない**（既存コメントは残す）。

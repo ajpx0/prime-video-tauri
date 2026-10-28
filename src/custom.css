@@ -54,6 +54,10 @@ nav[data-testid="pv-navigation-bar"] a,
 nav[data-testid="pv-navigation-bar"] input {
     -webkit-app-region: no-drag !important;
 }
+nav[data-testid="pv-navigation-bar"] [data-testid$="-dropdown"],
+nav[data-testid="pv-navigation-bar"] [data-testid="dropdown-page-overlay"] {
+    -webkit-app-region: no-drag !important;
+}
 nav[data-testid="pv-navigation-bar"] [data-testid="pv-nav-branding"] {
     -webkit-app-region: drag !important;
     pointer-events: none !important;
