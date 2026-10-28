@@ -78,7 +78,7 @@ const createWindow = () => {
   const win = new BrowserWindow({
     title: 'Prime Video Tauri',
     width: 1280,
-    height: 800,
+    height: 720,
     minWidth: 990,
     minHeight: 600,
     frame: false,
