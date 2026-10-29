@@ -11,37 +11,43 @@ concurrency:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows-latest
-            target: x86_64-pc-windows-msvc
-            name: windows-x64
+    runs-on: windows-latest
 
-    runs-on: ${{ matrix.platform }}
+    env:
+      EVS_ACCOUNT_NAME: ${{ secrets.EVS_ACCOUNT_NAME }}
+      EVS_PASSWD: ${{ secrets.EVS_PASSWD }}
+      EVS_SIGN: 1
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: lts/*
           cache: pnpm
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v7
         with:
-          targets: ${{ matrix.target }}
+          python-version: 3.x
+          cache: pip
+          cache-dependency-path: .github/workflows/*.yml
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v6
         with:
-          workspaces: src-tauri
-          key: ${{ matrix.target }}
+          path: |
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: electron-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: electron-
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-      - name: Build Tauri app
-        run: pnpm build
+      - run: pip install castlabs-evs==1.3.2
+
+      - run: evs-account -n reauth -A $env:EVS_ACCOUNT_NAME -P $env:EVS_PASSWD
+
+      - run: pnpm build
+
+      - run: evs-vmp verify-pkg dist/win-unpacked
