@@ -187,6 +187,8 @@ Object.defineProperty(window, 'chrome', {
     const player = findVisiblePlayer();
     root.classList.toggle('pvt-in-player', !!player);
     updatePlayerTopbar(player);
+    const fullscreen = document.fullscreenElement;
+    if (fullscreen && !fullscreen.getClientRects().length) document.exitFullscreen().catch(() => {});
   };
 
   let appWindow = null;
