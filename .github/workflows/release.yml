@@ -12,35 +12,24 @@ concurrency:
 permissions:
   contents: write
 
-env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 jobs:
   set_version:
     runs-on: ubuntu-slim
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      name: ${{ steps.version.outputs.name }}
+      version: ${{ github.event.head_commit.message }}
+      name: ${{ steps.package.outputs.name }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 1
-      - id: version
-        shell: bash
-        run: |
-          VERSION="$(git log -1 --format=%s | tr -d '[:space:]')"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          NAME="$(jq -r .name package.json)"
-          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+      - id: package
+        uses: jaywcjlove/github-action-package@v2
 
   create_draft_release:
     needs: [set_version]
     runs-on: ubuntu-slim
-    outputs:
-      release_id: ${{ steps.create.outputs.id }}
     steps:
-      - id: create
-        uses: softprops/action-gh-release@v3
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.set_version.outputs.version }}
           target_commitish: ${{ github.sha }}
@@ -53,15 +42,12 @@ jobs:
     needs: [set_version, create_draft_release]
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows-latest
-            target: x86_64-pc-windows-msvc
-            name: windows-x64
+    runs-on: windows-latest
 
-    runs-on: ${{ matrix.platform }}
+    env:
+      EVS_ACCOUNT_NAME: ${{ secrets.EVS_ACCOUNT_NAME }}
+      EVS_PASSWD: ${{ secrets.EVS_PASSWD }}
+      EVS_SIGN: 1
 
     steps:
       - uses: actions/checkout@v7
@@ -73,32 +59,40 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v7
         with:
-          targets: ${{ matrix.target }}
+          python-version: 3.x
+          cache: pip
+          cache-dependency-path: .github/workflows/*.yml
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v6
         with:
-          workspaces: src-tauri
-          key: ${{ matrix.target }}
+          path: |
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: electron-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: electron-
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-      - name: Set version
-        shell: bash
-        run: |
-          VERSION="${{ needs.set_version.outputs.version }}"
-          sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"${VERSION}\"/" package.json
-          sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"${VERSION}\"/" src-tauri/tauri.conf.json
-          sed -i "s/^version = \"[0-9]*\.[0-9]*\.[0-9]*\"/version = \"${VERSION}\"/" src-tauri/Cargo.toml
-          cargo update --manifest-path src-tauri/Cargo.toml --workspace
-
-      - uses: tauri-apps/tauri-action@v1
+      - uses: jaywcjlove/github-action-package@v2
         with:
-          releaseId: ${{ needs.create_draft_release.outputs.release_id }}
-          releaseAssetNamePattern: '[mainBinaryName]_[arch][setup][ext]'
-          args: --target ${{ matrix.target }}
+          version: ${{ needs.set_version.outputs.version }}
+
+      - run: pip install castlabs-evs==1.3.2
+
+      - run: evs-account -n reauth -A $env:EVS_ACCOUNT_NAME -P $env:EVS_PASSWD
+
+      - run: pnpm dist --publish never
+
+      - run: evs-vmp verify-pkg dist/win-unpacked
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.set_version.outputs.version }}
+          draft: true
+          files: dist/*-setup.exe
+          fail_on_unmatched_files: true
 
   finalize_release:
     needs: [set_version, create_draft_release, publish]

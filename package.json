@@ -1,18 +1,41 @@
 {
   "name": "prime-video-tauri",
+  "productName": "Prime Video Tauri",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "src/main.js",
   "packageManager": "pnpm@11.2.2",
   "scripts": {
-    "dev": "tauri dev",
-    "build": "tauri build --no-bundle"
+    "dev": "electron .",
+    "build": "electron-builder --dir",
+    "dist": "electron-builder"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "2.5.0"
+    "@ghostery/adblocker-electron": "^2.20.1",
+    "@xhayper/discord-rpc": "^1.5.1"
+  },
+  "build": {
+    "appId": "net.aariy.prime-video-tauri",
+    "executableName": "prime-video-tauri",
+    "electronVersion": "44.9.3",
+    "electronDownload": {
+      "version": "44.9.3+wvcus",
+      "mirror": "https://github.com/castlabs/electron-releases/releases/download/"
+    },
+    "files": [
+      "src/**/*"
+    ],
+    "artifactName": "${name}_${arch}-setup.${ext}",
+    "win": {
+      "signtoolOptions": {
+        "sign": "scripts/evs-sign.cjs"
+      },
+      "target": "nsis"
+    }
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "electron": "github:castlabs/electron-releases#v44.9.3+wvcus",
+    "electron-builder": "^26.18.0"
   }
 }
