@@ -23,7 +23,7 @@ jobs:
         with:
           fetch-depth: 1
       - id: package
-        uses: jaywcjlove/github-action-package@v2
+        uses: jaywcjlove/github-action-package@v2.1.0
 
   create_draft_release:
     needs: [set_version]
@@ -75,7 +75,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - uses: jaywcjlove/github-action-package@v2
+      - uses: jaywcjlove/github-action-package@v2.1.0
         with:
           version: ${{ needs.set_version.outputs.version }}
 
