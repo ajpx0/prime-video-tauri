@@ -28,7 +28,8 @@ Amazon Prime Video（`https://www.amazon.co.jp/gp/video/storefront`）を **cast
 | `scripts/evs-sign.cjs` | electron-builder の `win.signtoolOptions.sign`（カスタム署名）。`EVS_SIGN=1` かつ対象が `prime-video-tauri.exe` のときだけ `evs-vmp sign-pkg <dir>` で VMP 署名（`EVS_NO_ASK=1` 付き。認証切れ時に見えないプロンプトで固まらず即エラーにする。その場合は `evs-account reauth` してから再実行）（未設定なら何もしない＝未署名ビルド）。`afterPack` だと後続の rcedit（exe リソース書き換え）で署名が壊れ、`afterSign` は Authenticode 証明書が無いとスキップされるため、この位置で行う。確認は `evs-vmp verify-pkg dist/win-unpacked`。 |
 | `build/icon.svg` / `build/icon.png` | アプリアイコン（Prime Video 色 `#00A8E1` の角丸背景 + 白い Electron ロゴ。ロゴは simple-icons の `electron.svg`）。electron-builder が buildResources（`build/`）の `icon.png`（512px）を自動で使い exe に埋め込む。SVG を変えたら PNG を描き直す（Electron のオフスクリーン描画など）。 |
 | `package.json` | `main` / scripts / electron-builder 設定（`build`）。`productName`（表示名 `Prime Video Tauri`）/ `executableName`（exe 名 `prime-video-tauri`）/ `electronVersion` と `electronDownload`（castLabs の mirror `…/releases/download/` と `<ver>+wvcus`。mirror 末尾に `v` を付けると `vv…` になり 404）/ `artifactName`（`${name}_${arch}-setup.${ext}`、バージョン無し）/ `win.target: nsis`（`win-unpacked` も出力される）。`version` はリポジトリでは **常に `0.0.0`**。 |
-| `.github/workflows/` | `build.yml`（main 以外への push でビルド検証）/ `release.yml`（main への push でリリース）/ `create_release_commit.yml`（手動実行でリリース用マージコミット作成）。 |
+| `.gitlab-ci.yml` | 現行 CI（GitLab CI）。`build`（main 以外への push でビルド検証）/ `release`（main への push でリリース）/ `create-release-commit`（web からのパイプライン実行でリリース用マージコミット作成）。 |
+| `.github/workflows/` | 移行前の GitHub Actions 定義（`build.yml` / `release.yml` / `create_release_commit.yml`）。GitLab CI へ移行済みで残置。 |
 
 ## 開発・ビルドコマンド
 
@@ -90,14 +91,15 @@ pnpm dist     # = electron-builder（NSIS インストーラ dist/prime-video-ta
 
 ## CI / リリース
 
-- **`release.yml`（`main` への push で起動）**: **push されたコミットのメッセージがそのままバージョン**になる（`github.event.head_commit.message`。本文や前後の空白も含むため、メッセージはバージョン番号のみにする）。`set_version`（`jaywcjlove/github-action-package` で name 取得）→ ドラフトリリース作成 → `publish`（`jaywcjlove/github-action-package` で `package.json` の version を差し替え、`pnpm dist --publish never` で NSIS をビルドし `softprops/action-gh-release` でドラフトに添付）→ リリース確定。
-  - secrets `EVS_ACCOUNT_NAME` / `EVS_PASSWD` は**必須**（未署名だと Prime Video がエラー 7031 で再生できないため、無ければ `reauth` が失敗してジョブが落ちる）。`castlabs-evs` を入れて `reauth` し（Windows 既定の pwsh で実行）、ジョブ env の `EVS_SIGN=1` で VMP 署名、ビルド後に `evs-vmp verify-pkg dist/win-unpacked` で検証する。
-  - Electron / electron-builder のダウンロードキャッシュ（`~/AppData/Local/electron{,-builder}/Cache`）を `actions/cache` で `pnpm-lock.yaml` のハッシュをキーに保存し、`restore-keys: electron-` で lockfile 変更時も前回分を流用する。`castlabs-evs` の pip キャッシュは `setup-python` の `cache: pip`（キーはワークフローファイルのハッシュ）。いずれも `build.yml` も同様。
+- 現行 CI は **GitLab CI（`.gitlab-ci.yml`）**。`stages` は `build` / `release`、Windows ランナー（`tags: [saas-windows-medium-amd64]`）。共通のランナー準備は `.electron` にまとめ、各ジョブが `extends` する。
+  - `.electron` の `before_script`: nodejs.org の `index.json` から最新 LTS の zip を取って `C:\node` に展開 → `choco install python312` → `npm i -g corepack` + `corepack enable`（pnpm のバージョンは指定せず `package.json` の `packageManager` を単一ソースにする）→ `pnpm config set store-dir .pnpm-store` → `pnpm install --frozen-lockfile` → `pip install castlabs-evs==1.3.2` → `evs-account -n reauth -A $env:EVS_ACCOUNT_NAME -P $env:EVS_PASSWD`。
+  - CI/CD variables `EVS_ACCOUNT_NAME` / `EVS_PASSWD` は**必須**（未署名だと Prime Video がエラー 7031 で再生できないため、無ければ `reauth` が失敗してジョブが落ちる）。`.electron` の env `EVS_SIGN=1` で VMP 署名し、ビルド後に `evs-vmp verify-pkg dist/win-unpacked` で検証する。
+  - キャッシュは `pnpm-lock.yaml` をキーに `.cache/`（`ELECTRON_CACHE` / `ELECTRON_BUILDER_CACHE` をプロジェクト内に向けている）と `.pnpm-store/` を保存する。
+- **`build`（main 以外のブランチへの push）**: `pnpm build` → `evs-vmp verify-pkg dist/win-unpacked`（リリースはしない）。`interruptible: true`。
+- **`release`（`main` への push）**: **コミットタイトルがそのままバージョン**になる（`$CI_COMMIT_TITLE.Trim()`）。`npm pkg set version=$ver` → `pnpm dist --publish never` → `verify-pkg` → `dist/*-setup.exe` を generic package registry（`packages/generic/release/$ver/<file>`、`JOB-TOKEN` で PUT）へアップロード → Releases API で `tag_name = $ver` / `ref = $CI_COMMIT_SHA` / アセットリンク付きのリリースを作成。`resource_group: release` で直列化する。
   - したがって **main へのコミットのタイトルは `0.0.7` のようなバージョン番号にする**。SemVer 上 `0.0.6-1 < 0.0.6` になる点に注意。
   - アセット名は `prime-video-tauri_x64-setup.exe`（`artifactName`、バージョンを含まない）。
-- **`create_release_commit.yml`（`workflow_dispatch`）**: 入力 `source_branch`（既定 `develop`）と `version`（`x.y.z`）で、GitHub App トークン（`secrets.APP_PRIVATE_KEY`）を使い `source_branch → main` をマージコミット（タイトル = version）として作成 → `release.yml` が起動する。`GITHUB_TOKEN` での push はワークフローを起動しないため App トークンが必須。
-- **`build.yml`（main 以外への push）**: `release.yml` と同じ手順で VMP 署名して `pnpm build` し、`verify-pkg` で検証する（リリースはしない）。
-- pnpm のバージョンはワークフローで明示指定せず、`package.json` の `packageManager` を単一ソースにする（`pnpm/action-setup` の `version` 指定は併用すると競合エラーになるため付けない）。
+- **`create-release-commit`（web UI からのパイプライン実行）**: 変数 `RELEASE_VERSION`（`x.y.z`。正規表現で検証し、不正なら即失敗）と `RELEASE_SOURCE_BRANCH`（既定 `develop`）で、alpine イメージ上で `source → main` を `git merge --no-ff -m "$RELEASE_VERSION"` して push → `release` ジョブが起動する。push には書き込み権限のある CI/CD variable `RELEASE_TOKEN` が必要。
 
 ## コミット / PR 規約
 
@@ -105,7 +107,7 @@ pnpm dist     # = electron-builder（NSIS インストーラ dist/prime-video-ta
 - コミット: **Conventional Commits**・**英語**・**1 行**（本文/footer なし）・**GPG 署名必須**（`--no-verify` / `--no-gpg-sign` 禁止）。**依頼があるまで commit / push しない**。
 - ローカル `git push` はオーナー（AariyJP）として行う（develop ルールセットの bypass あり。`Changes must be made through a pull request` 警告は出るが成功する）。
 - **GitHub への書き込み（PR 作成・概要更新・コメント等）は GitHub App `aariyjp[bot]` 経由**: `~/ghs_token.ps1` でトークンを取得し `GH_TOKEN` をその場限りで使用（永続化しない）。bot として main に直接コミットする場合は GraphQL `createCommitOnBranch`（署名付き）を使う。
-- リリースは Actions の **Create Release Commit** をバージョン指定で実行する。
+- リリースは GitLab の web パイプライン実行で `RELEASE_VERSION` を指定し、**`create-release-commit`** を回す。
 
 ## 既知の残課題
 
